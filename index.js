@@ -17,7 +17,9 @@ var url = require('url'),
 	 * @param {Object} cfgAMQP For more info see: https://npmjs.org/package/follow
 	 * @param {Function} [format]
 	 */
-	followToAMQP = function (cfgCouch, cfgAMQP, format) {
+	followToAMQP = function (cfgCouch, cfgAMQP, format, condition) {
+		condition = condition || function (cb) { cb(); };
+
 		var connection = amqp.createConnection(cfgAMQP);
 		
 		connection.on('ready', function () {
@@ -29,14 +31,16 @@ var url = require('url'),
 				cfgCouch.include_docs = true;
 				
 				follow(cfgCouch, function (err, change) {
-					if (!err) {
-						var doc = change.doc,
-							msg = (format || defaultFormat)(doc);
-						
-						if (msg.body) {
-							exchange.publish(msg.name, msg.body, msg.options);
+					condition (function () {
+						if (!err) {
+							var doc = change.doc,
+								msg = (format || defaultFormat)(doc);
+				
+							if (msg.body) {
+								exchange.publish(msg.name, msg.body, msg.options);
+							}
 						}
-					}
+					});
 				});
 			});
 		});
